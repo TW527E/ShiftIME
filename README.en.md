@@ -49,7 +49,16 @@ The two shortcuts can be enabled or disabled independently in Settings.
 - System Settings → Privacy & Security → Accessibility.
 - System Settings → Privacy & Security → Input Monitoring.
 
-The first launch displays Settings and the current permission state. Rebuilding an ad-hoc-signed app may cause macOS to request permission again.
+The first launch displays Settings and the current permission state.
+
+### First launch and updates
+
+The DMG on the Releases page is ad-hoc signed and not notarized, so macOS blocks the first launch because it cannot verify the developer:
+
+1. Drag ShiftIME to Applications, open it once and click **Done** on the warning.
+2. Open System Settings → Privacy & Security and click **Open Anyway** near the bottom, then confirm.
+
+Each release has a different signing identity, so **after an update macOS usually treats the old Accessibility and Input Monitoring grants as invalid**. If Shift stops working, remove ShiftIME from both lists (`−`), add it again and enable it. The same applies to your own rebuilds.
 
 ## Local builds
 
