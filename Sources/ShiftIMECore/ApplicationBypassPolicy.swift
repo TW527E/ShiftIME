@@ -72,7 +72,11 @@ public enum ApplicationBypassPolicy {
             return true
         }
 
-        if normalize(applicationCategory) == "public.app-category.games" {
+        // macOS also has per-genre categories such as
+        // public.app-category.action-games and .role-playing-games.
+        let category = normalize(applicationCategory)
+        if category == "public.app-category.games"
+            || (category.hasPrefix("public.app-category.") && category.hasSuffix("-games")) {
             return true
         }
 

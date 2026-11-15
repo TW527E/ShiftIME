@@ -93,15 +93,18 @@ final class GlobalKeyboardMonitor {
         }
     }
 
-    /// Holds plain text keys and Shift; shortcuts pass so they are never
-    /// delayed. Shift is held with its letter because a Shift that arrives
-    /// alone looks like a bare tap, which Pinyin uses for its own
-    /// Chinese/English toggle.
+    /// Holds plain text keys and Shift. A shortcut passes at once while
+    /// nothing is held, so it is never delayed; once text is held, the
+    /// shortcut is held behind it, otherwise Cmd+A or Cmd+Return would act
+    /// before the text typed just ahead of it arrives. Shift is held with its
+    /// letter because a Shift that arrives alone looks like a bare tap, which
+    /// Pinyin uses for its own Chinese/English toggle.
     private func deferIfSwitching(event: CGEvent, keyCode: UInt16, isRelease: Bool) -> Bool {
         guard deferredEvents != nil else { return false }
         if isRelease {
             guard deferredKeyCodes.contains(keyCode) else { return false }
-        } else if !event.flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty {
+        } else if !event.flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty,
+                  deferredEvents?.isEmpty ?? true {
             return false
         }
         guard let copy = event.copy() else { return false }
