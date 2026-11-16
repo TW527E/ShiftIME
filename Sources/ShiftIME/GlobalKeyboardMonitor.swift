@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import Carbon
 import ShiftIMECore
@@ -14,6 +15,10 @@ final class GlobalKeyboardMonitor {
     /// Keystrokes held while a source switch is confirmed; nil when idle.
     private var deferredEvents: [CGEvent]?
     private var deferredKeyCodes: Set<UInt16> = []
+    /// The app that was frontmost when the keystrokes were held: they were
+    /// typed for it, so they go back to it even if another app is in front
+    /// by the time the switch finishes.
+    private var deferredTargetPID: pid_t?
     private var deferralGeneration = 0
 
     private static let leftShiftKeyCode: UInt16 = 56
@@ -73,17 +78,45 @@ final class GlobalKeyboardMonitor {
     /// in their original order, so they reach the destination input method.
     func finishDeferringInput() {
         let events = deferredEvents ?? []
+        let target = deferredTargetPID
         deferredEvents = nil
+        deferredTargetPID = nil
         deferredKeyCodes.removeAll(keepingCapacity: true)
+        guard !events.isEmpty else { return }
+        let focusMoved = target != nil && target != Self.frontmostPID()
+        if focusMoved, let target, NSRunningApplication(processIdentifier: target) == nil {
+            return // the app they were typed for is gone; never type them into another one
+        }
         for event in events {
             event.setIntegerValueField(.eventSourceUserData, value: Self.syntheticMarker)
-            event.post(tap: .cgSessionEventTap)
+            if focusMoved, let target {
+                event.postToPid(target)
+            } else {
+                event.post(tap: .cgSessionEventTap)
+            }
         }
+    }
+
+    /// Another app came to the front: keystrokes typed from now on are for
+    /// it, so the held ones are released at once to the app they came from.
+    /// ShiftIME briefly activates itself and then the original app to make
+    /// the new source take effect; that hand-off is not a user's app change.
+    func frontmostApplicationDidChange(to pid: pid_t?) {
+        guard deferredEvents != nil,
+              pid != NSRunningApplication.current.processIdentifier,
+              pid != deferredTargetPID else { return }
+        deferralGeneration += 1
+        finishDeferringInput()
+    }
+
+    private static func frontmostPID() -> pid_t? {
+        NSWorkspace.shared.frontmostApplication?.processIdentifier
     }
 
     private func beginDeferringInput() {
         guard deferredEvents == nil else { return }
         deferredEvents = []
+        deferredTargetPID = Self.frontmostPID()
         deferralGeneration += 1
         let generation = deferralGeneration
         // Input must never stay held if a switch fails to report completion.
@@ -93,15 +126,18 @@ final class GlobalKeyboardMonitor {
         }
     }
 
-    /// Holds plain text keys and Shift; shortcuts pass so they are never
-    /// delayed. Shift is held with its letter because a Shift that arrives
-    /// alone looks like a bare tap, which Pinyin uses for its own
-    /// Chinese/English toggle.
+    /// Holds plain text keys and Shift. A shortcut passes at once while
+    /// nothing is held, so it is never delayed; once text is held, the
+    /// shortcut is held behind it, otherwise Cmd+A or Cmd+Return would act
+    /// before the text typed just ahead of it arrives. Shift is held with its
+    /// letter because a Shift that arrives alone looks like a bare tap, which
+    /// Pinyin uses for its own Chinese/English toggle.
     private func deferIfSwitching(event: CGEvent, keyCode: UInt16, isRelease: Bool) -> Bool {
         guard deferredEvents != nil else { return false }
         if isRelease {
             guard deferredKeyCodes.contains(keyCode) else { return false }
-        } else if !event.flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty {
+        } else if !event.flags.intersection([.maskCommand, .maskControl, .maskAlternate]).isEmpty,
+                  deferredEvents?.isEmpty ?? true {
             return false
         }
         guard let copy = event.copy() else { return false }
