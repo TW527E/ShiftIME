@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil,
             queue: .main
         ) { [weak self] notification in
+            self?.keyboardMonitor.frontmostApplicationDidChange()
             self?.rememberForegroundApplication(notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)
             self?.refreshKeyboardMonitor()
         }

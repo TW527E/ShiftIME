@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import Carbon
 import ShiftIMECore
@@ -14,6 +15,10 @@ final class GlobalKeyboardMonitor {
     /// Keystrokes held while a source switch is confirmed; nil when idle.
     private var deferredEvents: [CGEvent]?
     private var deferredKeyCodes: Set<UInt16> = []
+    /// The app that was frontmost when the keystrokes were held: they were
+    /// typed for it, so they go back to it even if another app is in front
+    /// by the time the switch finishes.
+    private var deferredTargetPID: pid_t?
     private var deferralGeneration = 0
 
     private static let leftShiftKeyCode: UInt16 = 56
@@ -73,17 +78,41 @@ final class GlobalKeyboardMonitor {
     /// in their original order, so they reach the destination input method.
     func finishDeferringInput() {
         let events = deferredEvents ?? []
+        let target = deferredTargetPID
         deferredEvents = nil
+        deferredTargetPID = nil
         deferredKeyCodes.removeAll(keepingCapacity: true)
+        guard !events.isEmpty else { return }
+        let focusMoved = target != nil && target != Self.frontmostPID()
+        if focusMoved, let target, NSRunningApplication(processIdentifier: target) == nil {
+            return // the app they were typed for is gone; never type them into another one
+        }
         for event in events {
             event.setIntegerValueField(.eventSourceUserData, value: Self.syntheticMarker)
-            event.post(tap: .cgSessionEventTap)
+            if focusMoved, let target {
+                event.postToPid(target)
+            } else {
+                event.post(tap: .cgSessionEventTap)
+            }
         }
+    }
+
+    /// Another app came to the front: keystrokes typed from now on are for
+    /// it, so the held ones are released at once to the app they came from.
+    func frontmostApplicationDidChange() {
+        guard deferredEvents != nil else { return }
+        deferralGeneration += 1
+        finishDeferringInput()
+    }
+
+    private static func frontmostPID() -> pid_t? {
+        NSWorkspace.shared.frontmostApplication?.processIdentifier
     }
 
     private func beginDeferringInput() {
         guard deferredEvents == nil else { return }
         deferredEvents = []
+        deferredTargetPID = Self.frontmostPID()
         deferralGeneration += 1
         let generation = deferralGeneration
         // Input must never stay held if a switch fails to report completion.
