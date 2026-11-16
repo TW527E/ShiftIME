@@ -7,7 +7,10 @@ public enum PinyinInputSourceClassifier {
     /// its own shortcuts and must be passed through untouched.
     public static func isApplePinyin(id: String, localizedName: String) -> Bool {
         let normalizedID = id.lowercased()
-        guard normalizedID.hasPrefix("com.apple.inputmethod.") else { return false }
+        // Apple ships Pinyin both as input methods and as keyboard layouts
+        // (com.apple.keylayout.TraditionalPinyinKeyboard).
+        guard normalizedID.hasPrefix("com.apple.inputmethod.")
+            || normalizedID.hasPrefix("com.apple.keylayout.") else { return false }
         return normalizedID.contains("pinyin")
             || normalizedID == "com.apple.inputmethod.scim.itabc"
     }

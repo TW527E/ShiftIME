@@ -99,8 +99,12 @@ final class GlobalKeyboardMonitor {
 
     /// Another app came to the front: keystrokes typed from now on are for
     /// it, so the held ones are released at once to the app they came from.
-    func frontmostApplicationDidChange() {
-        guard deferredEvents != nil else { return }
+    /// ShiftIME briefly activates itself and then the original app to make
+    /// the new source take effect; that hand-off is not a user's app change.
+    func frontmostApplicationDidChange(to pid: pid_t?) {
+        guard deferredEvents != nil,
+              pid != NSRunningApplication.current.processIdentifier,
+              pid != deferredTargetPID else { return }
         deferralGeneration += 1
         finishDeferringInput()
     }
