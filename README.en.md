@@ -71,20 +71,20 @@ make test
 # Create dist/ShiftIME.app
 make app
 
-# Create dist/ShiftIME-1.0.0.dmg
+# Create dist/ShiftIME-1.1.0.dmg
 make dmg
 ```
 
 Build a Universal Binary for both Apple Silicon and Intel:
 
 ```bash
-BUILD_ARCHS="arm64 x86_64" VERSION=1.0.0 make dmg
+BUILD_ARCHS="arm64 x86_64" VERSION=1.1.0 make dmg
 ```
 
 Other supported build parameters:
 
 ```bash
-VERSION=1.0.0 BUILD_NUMBER=2 CONFIGURATION=release make app
+VERSION=1.1.0 BUILD_NUMBER=2 CONFIGURATION=release make app
 ```
 
 Run all local verification:

@@ -71,20 +71,20 @@ make test
 # 建立 dist/ShiftIME.app
 make app
 
-# 建立 dist/ShiftIME-1.0.0.dmg
+# 建立 dist/ShiftIME-1.1.0.dmg
 make dmg
 ```
 
 建立同時支援 Apple Silicon 與 Intel 的 Universal Binary：
 
 ```bash
-BUILD_ARCHS="arm64 x86_64" VERSION=1.0.0 make dmg
+BUILD_ARCHS="arm64 x86_64" VERSION=1.1.0 make dmg
 ```
 
 其他可用參數：
 
 ```bash
-VERSION=1.0.0 BUILD_NUMBER=2 CONFIGURATION=release make app
+VERSION=1.1.0 BUILD_NUMBER=2 CONFIGURATION=release make app
 ```
 
 執行完整驗證：
